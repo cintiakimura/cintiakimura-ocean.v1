@@ -1,0 +1,5 @@
+{
+  "name": "Ocean.v1",
+  "description": "A personal app builder tool featuring a multi-step form wizard to configure an application, a code editor to view the generated output, and a live preview sandbox.",
+  "requestFramePermissions": []
+}
