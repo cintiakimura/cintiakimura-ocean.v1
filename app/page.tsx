@@ -1,167 +1,89 @@
 'use client';
 
-import React, { useState, Suspense, lazy, type PropsWithChildren } from 'react';
-import { ChatSidebar } from '../components/ChatSidebar';
-import { Terminal } from '../components/Terminal';
-import type { WizardData } from '../types';
-import { generateCode as generateCodeService } from '../services/apiService';
-import { SandpackProvider } from '@codesandbox/sandpack-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 
-const MonacoEditor = lazy(() => import('@monaco-editor/react'));
-const SandpackPreview = lazy(() => import('@codesandbox/sandpack-react').then(module => ({ default: module.SandpackPreview })));
+export default function Home() {
+  const [code, setCode] = useState(`export default function App() {
+  return <h1 style={{ fontFamily: 'sans-serif' }}>Hello, Ocean v1!</h1>;
+}`);
 
-// A standard React Error Boundary component to catch rendering errors in its children.
-// Fix: Use PropsWithChildren for robust typing of component props, resolving a type error.
-// Fix: Explicitly defining props for the ErrorBoundary component to resolve type errors with `this.props`.
-interface ErrorBoundaryProps {
-    children?: React.ReactNode;
-}
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: boolean; error: Error | null }> {
-  state = { hasError: false, error: null };
+  const { register, handleSubmit } = useForm();
 
-  static getDerivedStateFromError(error: Error) {
-    // Update state so the next render will show the fallback UI.
-    return { hasError: true, error };
-  }
+  const onSubmit = (data: any) => {
+    console.log('Wizard submit:', data);
+    // Gemini call placeholder
+  };
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
-  }
+  const iframeContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Preview</title>
+        <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+        <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+        <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+      </head>
+      <body style="margin: 0; padding: 0;">
+        <div id="root"></div>
+        <script type="text/babel">
+          try {
+            ${code}
+            const container = document.getElementById('root');
+            const root = ReactDOM.createRoot(container);
+            root.render(<App />);
+          } catch (error) {
+            document.getElementById('root').innerHTML = '<pre style="color: red; padding: 1rem;">' + error + '</pre>';
+          }
+        </script>
+      </body>
+    </html>
+  `;
 
-  render() {
-    if (this.state.hasError) {
-      return <div className="text-red-500 p-4">Something went wrong: {this.state.error?.message}</div>;
-    }
-
-    // As requested for debugging, check for invalid child objects. The primary cause
-    // of React error #31 is often a library version mismatch, but this guard helps
-    // catch invalid renderables being passed as children.
-    React.Children.forEach(this.props.children, (child) => {
-        // This check identifies objects that are not valid React elements.
-        if (child && typeof child === 'object' && !React.isValidElement(child)) {
-            console.error(
-                'ErrorBoundary detected an invalid child object. ' + 
-                'This is not a renderable React element and will cause errors.',
-                child
-            );
-        }
-    });
-
-    // There are no conditional returns of plain objects; this correctly returns children.
-    return this.props.children;
-  }
-}
-
-// DEBUG: Wrapper component to help diagnose rendering issues as requested.
-// Fix: Use PropsWithChildren for robust typing of component props.
-function DebugWrapper({ children }: PropsWithChildren<{}>) {
   return (
-    <>
-      {children}
-      <div className="hidden">Debug: children type = {typeof children}</div>
-    </>
-  );
-}
+    <div className="min-h-screen bg-gray-900 text-white p-8">
+      <h1 className="text-3xl font-bold mb-6 text-center lg:text-left">Ocean v1 - Code Wizard</h1>
 
-const EditorLoading = () => <div className="h-full w-full bg-vscode-bg-light flex items-center justify-center text-sm text-gray-400">Loading Editor...</div>;
-const PreviewLoading = () => <div className="h-full w-full bg-vscode-bg-light flex items-center justify-center text-sm text-gray-400">Loading Preview...</div>;
-
-export default function App() {
-    const [isWizardVisible, setIsWizardVisible] = useState(true);
-    const [generatedCode, setGeneratedCode] = useState('// Click "Generate App" to create code...');
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [terminalOutput, setTerminalOutput] = useState<string[]>([
-        'Vercel App Builder v1.0.0',
-        'Starting development server...',
-        'Ready on http://localhost:3000',
-    ]);
-
-    const handleGenerate = async (data: WizardData) => {
-        setIsGenerating(true);
-        setTerminalOutput(prev => [...prev, '$ app-builder generate']);
-        setTerminalOutput(prev => [...prev, 'Reading wizard config... done.']);
-        setTerminalOutput(prev => [...prev, 'Generating code...']);
-        try {
-            const code = await generateCodeService(data);
-            setGeneratedCode(code);
-            setTerminalOutput(prev => [...prev, '✅ Generation successful. Preview updated.']);
-
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            setGeneratedCode(`// Error: ${errorMessage}`);
-            setTerminalOutput(prev => [...prev, `❌ Error: ${errorMessage}`]);
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
-    return (
-        <div className="h-screen w-screen flex flex-col bg-vscode-bg-deep text-vscode-text font-sans">
-            <header className="flex items-center h-8 bg-vscode-header text-sm border-b border-vscode-border flex-shrink-0">
-                <button 
-                    onClick={() => setIsWizardVisible(!isWizardVisible)} 
-                    className="px-4 h-full hover:bg-vscode-bg-light focus:outline-none"
-                    aria-label="Toggle wizard visibility"
-                >
-                    File
-                </button>
-                 <button 
-                    onClick={() => setIsWizardVisible(!isWizardVisible)} 
-                    className="px-4 h-full hover:bg-vscode-bg-light focus:outline-none"
-                    aria-label="Toggle wizard visibility"
-                >
-                    View
-                </button>
-                 <button 
-                    onClick={() => setIsWizardVisible(!isWizardVisible)} 
-                    className={`px-4 h-full focus:outline-none ${isWizardVisible ? 'bg-vscode-bg-light' : ''}`}
-                    aria-pressed={isWizardVisible}
-                 >
-                    Show Wizard
-                </button>
-            </header>
-            <div className="flex flex-grow overflow-hidden">
-                <ChatSidebar 
-                    isWizardVisible={isWizardVisible} 
-                    onGenerate={handleGenerate} 
-                    isGenerating={isGenerating} 
-                />
-                <div className="flex-grow flex flex-col min-w-0">
-                    <ErrorBoundary>
-                        <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-vscode-border">
-                            <div className="bg-vscode-bg-deep overflow-hidden">
-                                <DebugWrapper>
-                                    <Suspense fallback={<EditorLoading />}>
-                                        <MonacoEditor 
-                                            height="100%" 
-                                            language="javascript" 
-                                            theme="vs-dark" 
-                                            value={generatedCode} 
-                                            options={{ minimap: { enabled: false } }} 
-                                        />
-                                    </Suspense>
-                                </DebugWrapper>
-                            </div>
-                            <div className="bg-vscode-bg-deep overflow-hidden">
-                               <DebugWrapper>
-                                    <Suspense fallback={<PreviewLoading />}>
-                                        <div style={{ height: '100%', width: '100%' }}>
-                                            <SandpackProvider 
-                                                template="react" 
-                                                theme="dark"
-                                                files={{ '/App.js': generatedCode }} 
-                                            >
-                                                <SandpackPreview />
-                                            </SandpackProvider>
-                                        </div>
-                                    </Suspense>
-                               </DebugWrapper>
-                            </div>
-                        </div>
-                    </ErrorBoundary>
-                    <Terminal outputLines={terminalOutput} />
-                </div>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div>
+          <label htmlFor="code-editor" className="block mb-2 text-lg font-medium">Edit Code</label>
+          <textarea
+            id="code-editor"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className="w-full h-96 p-4 bg-gray-800 border border-gray-700 rounded-lg font-mono text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            spellCheck={false}
+          />
         </div>
-    );
+
+        <div>
+          <label className="block mb-2 text-lg font-medium">Live Preview</label>
+          <iframe
+            srcDoc={iframeContent}
+            title="Live Preview"
+            className="w-full h-96 border border-gray-700 rounded-lg bg-white"
+            sandbox="allow-scripts"
+          />
+        </div>
+      </div>
+
+      <footer className="mt-8">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 max-w-xl mx-auto lg:mx-0">
+          <label htmlFor="project-name" className="sr-only">Project Name</label>
+          <input
+            id="project-name"
+            {...register('projectName')}
+            placeholder="Project name"
+            className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button type="submit" className="w-full bg-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+            Generate with Gemini
+          </button>
+          <p className="text-sm text-gray-400 mt-2 text-center lg:text-left">
+            Need a Gemini API key? Get it free at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-400">aistudio.google.com</a>, then add it to your project's environment variables as <code>API_KEY</code>.
+          </p>
+        </form>
+      </footer>
+    </div>
+  );
 }
