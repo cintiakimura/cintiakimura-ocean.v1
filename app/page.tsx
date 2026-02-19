@@ -1,18 +1,67 @@
-
 'use client';
 
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy, type PropsWithChildren } from 'react';
 import { ChatSidebar } from '../components/ChatSidebar';
 import { Terminal } from '../components/Terminal';
 import type { WizardData } from '../types';
 import { generateCode as generateCodeService } from '../services/apiService';
-// FIX: Import SandpackProvider statically and lazy-load SandpackPreview separately to resolve typing issues.
 import { SandpackProvider } from '@codesandbox/sandpack-react';
 
 const MonacoEditor = lazy(() => import('@monaco-editor/react'));
-// FIX: Use SandpackPreview to only render the preview instead of the full Sandpack component with an editor.
 const SandpackPreview = lazy(() => import('@codesandbox/sandpack-react').then(module => ({ default: module.SandpackPreview })));
 
+// A standard React Error Boundary component to catch rendering errors in its children.
+// Fix: Use PropsWithChildren for robust typing of component props, resolving a type error.
+// Fix: Explicitly defining props for the ErrorBoundary component to resolve type errors with `this.props`.
+interface ErrorBoundaryProps {
+    children?: React.ReactNode;
+}
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, { hasError: boolean; error: Error | null }> {
+  state = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    // Update state so the next render will show the fallback UI.
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div className="text-red-500 p-4">Something went wrong: {this.state.error?.message}</div>;
+    }
+
+    // As requested for debugging, check for invalid child objects. The primary cause
+    // of React error #31 is often a library version mismatch, but this guard helps
+    // catch invalid renderables being passed as children.
+    React.Children.forEach(this.props.children, (child) => {
+        // This check identifies objects that are not valid React elements.
+        if (child && typeof child === 'object' && !React.isValidElement(child)) {
+            console.error(
+                'ErrorBoundary detected an invalid child object. ' + 
+                'This is not a renderable React element and will cause errors.',
+                child
+            );
+        }
+    });
+
+    // There are no conditional returns of plain objects; this correctly returns children.
+    return this.props.children;
+  }
+}
+
+// DEBUG: Wrapper component to help diagnose rendering issues as requested.
+// Fix: Use PropsWithChildren for robust typing of component props.
+function DebugWrapper({ children }: PropsWithChildren<{}>) {
+  return (
+    <>
+      {children}
+      <div className="hidden">Debug: children type = {typeof children}</div>
+    </>
+  );
+}
 
 const EditorLoading = () => <div className="h-full w-full bg-vscode-bg-light flex items-center justify-center text-sm text-gray-400">Loading Editor...</div>;
 const PreviewLoading = () => <div className="h-full w-full bg-vscode-bg-light flex items-center justify-center text-sm text-gray-400">Loading Preview...</div>;
@@ -78,34 +127,38 @@ export default function App() {
                     isGenerating={isGenerating} 
                 />
                 <div className="flex-grow flex flex-col min-w-0">
-                    <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-vscode-border">
-                        <div className="bg-vscode-bg-deep overflow-hidden">
-                            <Suspense fallback={<EditorLoading />}>
-                                <MonacoEditor 
-                                    height="100%" 
-                                    language="javascript" 
-                                    theme="vs-dark" 
-                                    value={generatedCode} 
-                                    options={{ minimap: { enabled: false } }} 
-                                />
-                            </Suspense>
+                    <ErrorBoundary>
+                        <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-vscode-border">
+                            <div className="bg-vscode-bg-deep overflow-hidden">
+                                <DebugWrapper>
+                                    <Suspense fallback={<EditorLoading />}>
+                                        <MonacoEditor 
+                                            height="100%" 
+                                            language="javascript" 
+                                            theme="vs-dark" 
+                                            value={generatedCode} 
+                                            options={{ minimap: { enabled: false } }} 
+                                        />
+                                    </Suspense>
+                                </DebugWrapper>
+                            </div>
+                            <div className="bg-vscode-bg-deep overflow-hidden">
+                               <DebugWrapper>
+                                    <Suspense fallback={<PreviewLoading />}>
+                                        <div style={{ height: '100%', width: '100%' }}>
+                                            <SandpackProvider 
+                                                template="react" 
+                                                theme="dark"
+                                                files={{ '/App.js': generatedCode }} 
+                                            >
+                                                <SandpackPreview />
+                                            </SandpackProvider>
+                                        </div>
+                                    </Suspense>
+                               </DebugWrapper>
+                            </div>
                         </div>
-                        <div className="bg-vscode-bg-deep overflow-hidden">
-                           <Suspense fallback={<PreviewLoading />}>
-                                {/* FIX: Replaced Sandpack with SandpackProvider and SandpackPreview to fix type error and improve UI. */}
-                                {/* FIX: Wrap SandpackProvider in a styled div. This sizes the Sandpack component and avoids a type error on SandpackPreview's style prop. */}
-                                <div style={{ height: '100%', width: '100%' }}>
-                                    <SandpackProvider 
-                                        template="react" 
-                                        theme="dark"
-                                        files={{ '/App.js': generatedCode }} 
-                                    >
-                                        <SandpackPreview />
-                                    </SandpackProvider>
-                                </div>
-                            </Suspense>
-                        </div>
-                    </div>
+                    </ErrorBoundary>
                     <Terminal outputLines={terminalOutput} />
                 </div>
             </div>

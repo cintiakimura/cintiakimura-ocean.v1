@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, type PropsWithChildren } from 'react';
 import { useForm, useFieldArray, type SubmitHandler } from 'react-hook-form';
 import type { WizardData, Role } from '../types';
 
@@ -22,7 +21,14 @@ const initialData: WizardData = {
 const ChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
 const ChevronRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>;
 
-const AccordionSection = ({ title, children, isOpen, onToggle }: { title: string, children: React.ReactNode, isOpen: boolean, onToggle: () => void }) => (
+// Fix: Used PropsWithChildren to correctly type a component that accepts children, resolving multiple errors.
+type AccordionSectionProps = PropsWithChildren<{
+    title: string;
+    isOpen: boolean;
+    onToggle: () => void;
+}>;
+
+const AccordionSection = ({ title, children, isOpen, onToggle }: AccordionSectionProps) => (
     <div className="border-b border-vscode-border">
         <button type="button" onClick={onToggle} className="w-full flex items-center p-2 text-sm font-bold uppercase hover:bg-vscode-bg-light" aria-expanded={isOpen}>
             {isOpen ? <ChevronDown /> : <ChevronRight />}
