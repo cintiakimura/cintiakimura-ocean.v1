@@ -7,15 +7,16 @@ const config: Config = {
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
-  darkMode: 'class',
+  darkMode: 'class', // Dark mode is now default, but class can be kept for future toggles
   theme: {
     extend: {
       colors: {
-        bkg: 'hsl(var(--bkg))',
-        content: 'hsl(var(--content))',
-        primary: 'hsl(var(--primary))',
-        'primary-content': 'hsl(var(--primary-content))',
-        muted: 'hsl(var(--muted))',
+        'vscode-bg-deep': 'hsl(var(--vscode-bg-deep))',
+        'vscode-bg-light': 'hsl(var(--vscode-bg-light))',
+        'vscode-sidebar': 'hsl(var(--vscode-sidebar))',
+        'vscode-header': 'hsl(var(--vscode-header))',
+        'vscode-border': 'hsl(var(--vscode-border))',
+        'vscode-text': 'hsl(var(--vscode-text))',
       },
     },
   },

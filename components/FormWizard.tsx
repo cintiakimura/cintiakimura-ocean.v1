@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useForm, useFieldArray, type SubmitHandler } from 'react-hook-form';
 import type { WizardData, Role } from '../types';
 
 interface FormWizardProps {
@@ -10,113 +11,107 @@ interface FormWizardProps {
 }
 
 const initialData: WizardData = {
-    roles: [{ id: 1, name: 'Admin', permissions: { view: true, edit: true, delete: true, invite: true } }],
-    pages: { public: ['landing', 'login'], private: ['dashboard'] },
-    uploads: { allowedTypes: 'png, jpg, pdf', maxSize: 10 },
+    roles: [{ id: Date.now(), name: 'Admin', permissions: { view: true, edit: true, delete: true, invite: true } }],
+    pages: { public: ['landing', 'login'], private: ['dashboard', 'settings'] },
+    uploads: { allowedTypes: '.png, .jpg, .pdf', maxSize: 10 },
     auth: ['email_password'],
     brand: null,
     apis: 'Stripe, SendGrid'
 };
 
-const steps = ['Roles', 'Pages', 'Uploads', 'Auth', 'Brand', 'APIs'];
+const ChevronDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
+const ChevronRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>;
+
+const AccordionSection = ({ title, children, isOpen, onToggle }: { title: string, children: React.ReactNode, isOpen: boolean, onToggle: () => void }) => (
+    <div className="border-b border-vscode-border">
+        <button type="button" onClick={onToggle} className="w-full flex items-center p-2 text-sm font-bold uppercase hover:bg-vscode-bg-light" aria-expanded={isOpen}>
+            {isOpen ? <ChevronDown /> : <ChevronRight />}
+            <span className="ml-1">{title}</span>
+        </button>
+        {isOpen && <div className="p-3 bg-vscode-bg-deep">{children}</div>}
+    </div>
+);
 
 export const FormWizard: React.FC<FormWizardProps> = ({ onGenerate, isGenerating }) => {
-    const [currentStep, setCurrentStep] = useState(0);
-    const [formData, setFormData] = useState<WizardData>(initialData);
+    const { register, handleSubmit, control, formState: { errors } } = useForm<WizardData>({ defaultValues: initialData });
+    const { fields, append, remove } = useFieldArray({ control, name: "roles" });
+    const [openSection, setOpenSection] = useState<string>('Roles');
 
-    const handleNext = () => setCurrentStep(prev => Math.min(prev + 1, steps.length - 1));
-    const handlePrev = () => setCurrentStep(prev => Math.max(prev - 1, 0));
-
-    const handlePermissionChange = (id: number, permission: string, value: boolean) => {
-         setFormData(prev => ({
-            ...prev,
-            roles: prev.roles.map(r => r.id === id ? { ...r, permissions: {...r.permissions, [permission]: value} } : r)
-        }));
-    }
-
-    const addRole = () => {
-        setFormData(prev => ({
-            ...prev,
-            roles: [...prev.roles, { id: Date.now(), name: 'New Role', permissions: { view: true, edit: false, delete: false, invite: false } }]
-        }));
+    const handleToggle = (section: string) => {
+        setOpenSection(openSection === section ? '' : section);
     };
 
-    const removeRole = (id: number) => {
-        setFormData(prev => ({ ...prev, roles: prev.roles.filter(r => r.id !== id) }));
+    const processForm: SubmitHandler<WizardData> = data => {
+        onGenerate(data);
     };
-
-    const renderStepContent = () => {
-        switch (steps[currentStep]) {
-            case 'Roles':
-                return (
-                    <div>
-                        {formData.roles.map(role => (
-                            <div key={role.id} className="p-3 border rounded-md mb-2 bg-bkg">
-                                <input value={role.name} onChange={(e) => setFormData(p => ({...p, roles: p.roles.map(r => r.id === role.id ? {...r, name: e.target.value} : r)}))} className="w-full bg-transparent border-b p-1 mb-2"/>
-                                <div className="grid grid-cols-2 gap-2 text-sm mt-2">
-                                    {Object.keys(role.permissions).map(p => (
-                                        <label key={p} className="flex items-center"><input type="checkbox" checked={role.permissions[p as keyof Role['permissions']]} onChange={e => handlePermissionChange(role.id, p, e.target.checked)} className="mr-2"/> {p} </label>
-                                    ))}
-                                </div>
-                                <button onClick={() => removeRole(role.id)} className="text-red-500 text-xs mt-2">Remove</button>
-                            </div>
-                        ))}
-                        <button onClick={addRole} className="w-full text-center p-2 bg-primary text-primary-content rounded-md mt-2 text-sm">Add Role</button>
-                    </div>
-                );
-            case 'Pages':
-                 return <div>
-                    <label className="font-semibold mb-2 block">Public Pages (comma-separated)</label>
-                    <input className="w-full p-2 rounded-md bg-bkg border" value={formData.pages.public.join(', ')} onChange={e => setFormData(f => ({...f, pages: {...f.pages, public: e.target.value.split(',').map(s=>s.trim())}}))}/>
-                     <label className="font-semibold my-2 block">Private Pages (comma-separated)</label>
-                    <input className="w-full p-2 rounded-md bg-bkg border" value={formData.pages.private.join(', ')} onChange={e => setFormData(f => ({...f, pages: {...f.pages, private: e.target.value.split(',').map(s=>s.trim())}}))}/>
-                 </div>
-            case 'Uploads':
-                return <div>
-                    <label className="block mb-2">Allowed File Types</label>
-                    <input className="w-full p-2 rounded-md bg-bkg border" value={formData.uploads.allowedTypes} onChange={e => setFormData(f => ({...f, uploads: {...f.uploads, allowedTypes: e.target.value}}))}/>
-                    <label className="block mt-4 mb-2">Max Size (MB) per user: {formData.uploads.maxSize}MB</label>
-                    <input type="range" min="1" max="100" value={formData.uploads.maxSize} onChange={e => setFormData(f => ({...f, uploads: {...f.uploads, maxSize: +e.target.value}}))} className="w-full"/>
-                </div>
-            case 'Auth':
-                return <div>
-                    <label className="flex items-center p-2 rounded-md bg-bkg mb-2"><input type="checkbox" className="mr-2" checked={formData.auth.includes('email_password')} onChange={e => setFormData(f => ({...f, auth: e.target.checked ? [...f.auth, 'email_password'] : f.auth.filter(a => a !== 'email_password')}))}/> Email/Password</label>
-                    <label className="flex items-center p-2 rounded-md bg-bkg"><input type="checkbox" className="mr-2" checked={formData.auth.includes('google')} onChange={e => setFormData(f => ({...f, auth: e.target.checked ? [...f.auth, 'google'] : f.auth.filter(a => a !== 'google')}))}/> Google SSO</label>
-                </div>
-            case 'Brand':
-                return <div>
-                     <label className="block mb-2">Brand Guide (optional)</label>
-                    <input type="file" onChange={e => setFormData(f => ({...f, brand: e.target.files ? e.target.files[0] : null}))} className="w-full text-sm"/>
-                    {formData.brand && <p className="text-xs mt-2 text-content/70">Selected: {formData.brand.name}</p>}
-                </div>
-            case 'APIs':
-                 return <div>
-                     <label className="block mb-2">External API Services (comma-separated)</label>
-                     <textarea rows={4} className="w-full p-2 rounded-md bg-bkg border" value={formData.apis} onChange={e => setFormData(f => ({...f, apis: e.target.value}))}></textarea>
-                 </div>
-            default: return null;
-        }
-    }
 
     return (
-        <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4">
-                 <h2 className="text-lg font-semibold">{steps[currentStep]}</h2>
-                <span className="text-sm text-content/60">{currentStep + 1} / {steps.length}</span>
-            </div>
-            
-            <div className="flex-grow mb-4">{renderStepContent()}</div>
+        <form onSubmit={handleSubmit(processForm)} className="flex flex-col h-full">
+            <div className="flex-grow space-y-1">
+                <AccordionSection title="Roles" isOpen={openSection === 'Roles'} onToggle={() => handleToggle('Roles')}>
+                    {fields.map((field, index) => (
+                        <div key={field.id} className="p-3 border border-vscode-border rounded-md mb-2 bg-vscode-bg-light">
+                             <label htmlFor={`roles.${index}.name`} className="sr-only">Role Name</label>
+                             <input id={`roles.${index}.name`} {...register(`roles.${index}.name`, { required: "Role name is required" })} className="w-full bg-transparent border-b border-vscode-border p-1 mb-2 text-sm" placeholder="Role Name" />
+                             {errors.roles?.[index]?.name && <p className="text-red-400 text-xs mt-1">{errors.roles[index]?.name?.message}</p>}
+                            <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+                                {Object.keys(initialData.roles[0].permissions).map(p => (
+                                    <label key={p} htmlFor={`roles.${index}.permissions.${p}`} className="flex items-center space-x-2"><input id={`roles.${index}.permissions.${p}`} type="checkbox" {...register(`roles.${index}.permissions.${p as keyof Role['permissions']}`)} /><span>{p}</span></label>
+                                ))}
+                            </div>
+                            <button type="button" onClick={() => remove(index)} className="text-red-500 text-xs mt-2 hover:underline">Remove</button>
+                        </div>
+                    ))}
+                    <button type="button" onClick={() => append({ id: Date.now(), name: '', permissions: { view: true, edit: false, delete: false, invite: false }})} className="w-full text-center p-2 bg-blue-600 hover:bg-blue-700 rounded-md mt-2 text-sm">Add Role</button>
+                </AccordionSection>
 
-            <div className="flex items-center justify-between mt-auto pt-4 border-t border-muted/20">
-                <button onClick={handlePrev} disabled={currentStep === 0} className="px-4 py-2 rounded-md bg-muted/50 disabled:opacity-50">Prev</button>
-                {currentStep === steps.length - 1 ? (
-                    <button onClick={() => onGenerate(formData)} disabled={isGenerating} className="px-4 py-2 rounded-md bg-green-600 text-white disabled:bg-green-800 disabled:cursor-not-allowed">
-                        {isGenerating ? 'Generating...' : 'Generate App'}
-                    </button>
-                ) : (
-                    <button onClick={handleNext} className="px-4 py-2 rounded-md bg-primary text-primary-content">Next</button>
-                )}
+                <AccordionSection title="Pages" isOpen={openSection === 'Pages'} onToggle={() => handleToggle('Pages')}>
+                    <div className="space-y-4 text-sm">
+                        <label htmlFor="pages.public" className="block">Public Pages (comma-separated)</label>
+                        <input id="pages.public" className="w-full p-2 mt-1 rounded-sm bg-vscode-bg-light border border-vscode-border" {...register('pages.public', {setValueAs: v => typeof v === 'string' ? v.split(',').map(s=>s.trim()) : v})} />
+                        
+                        <label htmlFor="pages.private" className="block">Private Pages (comma-separated)</label>
+                        <input id="pages.private" className="w-full p-2 mt-1 rounded-sm bg-vscode-bg-light border border-vscode-border" {...register('pages.private', {setValueAs: v => typeof v === 'string' ? v.split(',').map(s=>s.trim()) : v})} />
+                    </div>
+                </AccordionSection>
+                
+                <AccordionSection title="Uploads" isOpen={openSection === 'Uploads'} onToggle={() => handleToggle('Uploads')}>
+                    <div className="space-y-4 text-sm">
+                        <label htmlFor="uploads.allowedTypes" className="block">Allowed File Types</label>
+                        <input id="uploads.allowedTypes" className="w-full p-2 mt-1 rounded-sm bg-vscode-bg-light border border-vscode-border" {...register('uploads.allowedTypes', { required: "Specify allowed file types" })} />
+                        {errors.uploads?.allowedTypes && <p className="text-red-400 text-xs">{errors.uploads.allowedTypes.message}</p>}
+
+                        <label htmlFor="uploads.maxSize" className="block">Max Size (MB)</label>
+                        <input id="uploads.maxSize" type="range" min="1" max="100" {...register('uploads.maxSize', {valueAsNumber: true})} className="w-full mt-1"/>
+                    </div>
+                </AccordionSection>
+                
+                <AccordionSection title="Auth" isOpen={openSection === 'Auth'} onToggle={() => handleToggle('Auth')}>
+                     <div className="space-y-2 text-sm">
+                        <label htmlFor="auth.email" className="flex items-center space-x-2 p-2 rounded-md bg-vscode-bg-light"><input id="auth.email" type="checkbox" {...register('auth')} value="email_password" /><span>Email/Password</span></label>
+                        <label htmlFor="auth.google" className="flex items-center space-x-2 p-2 rounded-md bg-vscode-bg-light"><input id="auth.google" type="checkbox" {...register('auth')} value="google" /><span>Google SSO</span></label>
+                    </div>
+                </AccordionSection>
+
+                 <AccordionSection title="Brand" isOpen={openSection === 'Brand'} onToggle={() => handleToggle('Brand')}>
+                     <div className="text-sm">
+                        <label htmlFor="brand.file" className="block mb-2">Brand Guide (optional)</label>
+                        <input id="brand.file" type="file" {...register('brand', {setValueAs: v => v && v.length > 0 ? v[0] : null })} className="w-full text-xs"/>
+                    </div>
+                 </AccordionSection>
+                
+                 <AccordionSection title="APIs" isOpen={openSection === 'APIs'} onToggle={() => handleToggle('APIs')}>
+                     <div className="text-sm">
+                        <label htmlFor="apis.list" className="block mb-2">External APIs (comma-separated)</label>
+                        <textarea id="apis.list" rows={3} className="w-full p-2 rounded-sm bg-vscode-bg-light border border-vscode-border" {...register('apis')}></textarea>
+                    </div>
+                 </AccordionSection>
             </div>
-        </div>
+            <div className="mt-auto pt-4 border-t border-vscode-border">
+                 <button type="submit" disabled={isGenerating} className="w-full px-4 py-2 rounded-md bg-green-600 text-white disabled:bg-green-800 disabled:cursor-not-allowed text-sm">
+                    {isGenerating ? 'Generating...' : 'Generate App'}
+                </button>
+            </div>
+        </form>
     );
 };

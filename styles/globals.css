@@ -4,22 +4,31 @@
 @tailwind utilities;
 
 :root {
-  --bkg: 0 0% 100%;
-  --content: 240 10% 3.9%;
-  --primary: 240 5.9% 10%;
-  --primary-content: 0 0% 98%;
-  --muted: 240 4.8% 95.9%;
-}
-
-.dark {
-  --bkg: 240 10% 3.9%;
-  --content: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-content: 240 5.9% 10%;
-  --muted: 240 3.7% 15.9%;
+  --vscode-bg-deep: 222 14% 10%; /* #181a1f */
+  --vscode-bg-light: 220 13% 18%; /* #282c34 */
+  --vscode-sidebar: 220 14% 14%; /* #1f2228 */
+  --vscode-header: 220 14% 14%; /* #1f2228 */
+  --vscode-border: 220 13% 24%; /* #363b46 */
+  --vscode-text: 220 40% 90%; /* #d9e1f0 */
 }
 
 body {
-  @apply bg-bkg text-content;
-  color-scheme: light dark;
+  background-color: hsl(var(--vscode-bg-deep));
+  color: hsl(var(--vscode-text));
+}
+
+/* Custom scrollbar for a more integrated look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--vscode-bg-deep));
+}
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--vscode-border));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--vscode-bg-light));
 }
