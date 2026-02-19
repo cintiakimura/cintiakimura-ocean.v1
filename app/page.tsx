@@ -1,13 +1,21 @@
 
 'use client';
 
-import React, { useState } from 'react';
-import MonacoEditor from '@monaco-editor/react';
-import { Sandpack } from '@codesandbox/sandpack-react';
+import React, { useState, Suspense, lazy } from 'react';
 import { ChatSidebar } from '../components/ChatSidebar';
 import { Terminal } from '../components/Terminal';
 import type { WizardData } from '../types';
 import { generateCode as generateCodeService } from '../services/apiService';
+// FIX: Import SandpackProvider statically and lazy-load SandpackPreview separately to resolve typing issues.
+import { SandpackProvider } from '@codesandbox/sandpack-react';
+
+const MonacoEditor = lazy(() => import('@monaco-editor/react'));
+// FIX: Use SandpackPreview to only render the preview instead of the full Sandpack component with an editor.
+const SandpackPreview = lazy(() => import('@codesandbox/sandpack-react').then(module => ({ default: module.SandpackPreview })));
+
+
+const EditorLoading = () => <div className="h-full w-full bg-vscode-bg-light flex items-center justify-center text-sm text-gray-400">Loading Editor...</div>;
+const PreviewLoading = () => <div className="h-full w-full bg-vscode-bg-light flex items-center justify-center text-sm text-gray-400">Loading Preview...</div>;
 
 export default function App() {
     const [isWizardVisible, setIsWizardVisible] = useState(true);
@@ -72,21 +80,30 @@ export default function App() {
                 <div className="flex-grow flex flex-col min-w-0">
                     <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-vscode-border">
                         <div className="bg-vscode-bg-deep overflow-hidden">
-                            <MonacoEditor 
-                                height="100%" 
-                                language="javascript" 
-                                theme="vs-dark" 
-                                value={generatedCode} 
-                                options={{ minimap: { enabled: false } }} 
-                            />
+                            <Suspense fallback={<EditorLoading />}>
+                                <MonacoEditor 
+                                    height="100%" 
+                                    language="javascript" 
+                                    theme="vs-dark" 
+                                    value={generatedCode} 
+                                    options={{ minimap: { enabled: false } }} 
+                                />
+                            </Suspense>
                         </div>
                         <div className="bg-vscode-bg-deep overflow-hidden">
-                            <Sandpack 
-                                template="react" 
-                                theme="dark"
-                                files={{ '/App.js': generatedCode }} 
-                                options={{ showLineNumbers: false, editorHeight: '100%' }} 
-                            />
+                           <Suspense fallback={<PreviewLoading />}>
+                                {/* FIX: Replaced Sandpack with SandpackProvider and SandpackPreview to fix type error and improve UI. */}
+                                {/* FIX: Wrap SandpackProvider in a styled div. This sizes the Sandpack component and avoids a type error on SandpackPreview's style prop. */}
+                                <div style={{ height: '100%', width: '100%' }}>
+                                    <SandpackProvider 
+                                        template="react" 
+                                        theme="dark"
+                                        files={{ '/App.js': generatedCode }} 
+                                    >
+                                        <SandpackPreview />
+                                    </SandpackProvider>
+                                </div>
+                            </Suspense>
                         </div>
                     </div>
                     <Terminal outputLines={terminalOutput} />
