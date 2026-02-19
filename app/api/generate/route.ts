@@ -1,55 +1,57 @@
-// FIX: Replaced the mock code generation logic with a call to the Gemini API to generate React code based on the user's form input. This provides a dynamic and powerful code generation capability.
-import { NextResponse } from 'next/server';
+// FIX: Replaced mock response with a call to the Gemini API for dynamic code generation.
 import { GoogleGenAI } from '@google/genai';
+import { NextResponse } from 'next/server';
 import type { WizardData } from '../../../types';
 
 export async function POST(request: Request) {
   try {
     const data: WizardData = await request.json();
 
-    if (!process.env.API_KEY) {
-      return NextResponse.json({ error: 'API key not configured.' }, { status: 500 });
-    }
-    
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    
-    // Since File object cannot be serialized, we just note its presence.
-    const serializableData = {
-        ...data,
-        brand: data.brand ? { name: "Uploaded File" } : null
+    // The brand object is not serialized properly from a File object, so we create a descriptive string for the prompt.
+    const promptData = {
+      ...data,
+      brand: data.brand ? "A brand guide file has been provided. Please generate a UI with a generic but professional corporate theme." : "No brand guide file provided."
     };
-    
-    const prompt = `Generate a single-file React functional component named 'App' based on the following JSON configuration. 
-The generated component should be a complete working example that reflects all the settings in the configuration.
-The output must be only the raw JSX code, without any extra explanations, comments, or markdown formatting like \`\`\`jsx.
+
+    const prompt = `
+You are an expert full-stack developer specializing in React, Next.js, and Tailwind CSS.
+Your task is to generate the code for a single React component that represents a web application's main page.
+The component should be generated based on the following configuration provided by the user.
+The output MUST be only the JavaScript/JSX code for the component, with no explanations or markdown formatting like \`\`\`jsx.
 
 Configuration:
-${JSON.stringify(serializableData, null, 2)}
+${JSON.stringify(promptData, null, 2)}
+
+Instructions:
+- Create a functional React component named 'App'.
+- Use React hooks for state management if needed.
+- Style the application using Tailwind CSS classes. You can assume Tailwind is set up.
+- The layout should be clean and modern.
+- Based on the 'roles', create a simple user management UI.
+- Based on the 'pages', create a navigation bar.
+- Based on the 'uploads', create a file upload section.
+- Based on the 'auth', show which authentication methods are available.
+- If a 'brand' guide is mentioned, use a professional, corporate color scheme.
+- Based on the 'apis', list the integrated external services.
+
+Generate the complete, runnable React component code below.
 `;
 
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview', // Good for complex reasoning and coding
-        contents: prompt,
-        config: {
-            systemInstruction: "You are an expert React developer specializing in creating single-file application prototypes from a configuration object. Your response must be only the code for the React component.",
-            temperature: 0.2, // Lower temperature for more deterministic code output
-        }
+        model: 'gemini-3-pro-preview', // Complex Text Tasks (coding)
+        contents: prompt
     });
 
-    let code = response.text || '// Failed to generate code. Please try again.';
+    const codeString = response.text;
 
-    // Clean up potential markdown formatting from the response
-    if (code.startsWith('```jsx')) {
-      code = code.substring(5, code.length - 3).trim();
-    } else if (code.startsWith('```javascript')) {
-      code = code.substring(13, code.length - 3).trim();
-    } else if (code.startsWith('```')) {
-      code = code.substring(3, code.length - 3).trim();
+    if (!codeString) {
+      return NextResponse.json({ error: 'Failed to generate code from AI. The response was empty.' }, { status: 500 });
     }
-    
-    return NextResponse.json({ code });
+
+    return NextResponse.json({ code: codeString });
   } catch (error) {
-    console.error('Error in /api/generate:', error);
+    console.error(error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json({ error: `Failed to generate code: ${errorMessage}` }, { status: 500 });
   }

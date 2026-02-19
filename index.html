@@ -1,68 +1,14 @@
-
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>React App Builder</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      // Support for dark mode
-      if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-      // Tailwind custom config
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              'bkg': 'hsl(var(--bkg))',
-              'content': 'hsl(var(--content))',
-              'primary': 'hsl(var(--primary))',
-              'primary-content': 'hsl(var(--primary-content))',
-              'muted': 'hsl(var(--muted))',
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      :root {
-        --bkg: 0 0% 100%;
-        --content: 240 10% 3.9%;
-        --primary: 240 5.9% 10%;
-        --primary-content: 0 0% 98%;
-        --muted: 240 3.7% 15.9%;
-      }
-      .dark {
-        --bkg: 240 10% 3.9%;
-        --content: 0 0% 98%;
-        --primary: 0 0% 98%;
-        --primary-content: 240 5.9% 10%;
-        --muted: 240 3.7% 15.9%;
-      }
-    </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "next": "https://esm.sh/next@^16.1.6",
+    "next/": "https://esm.sh/next@^16.1.6/",
     "@monaco-editor/react": "https://esm.sh/@monaco-editor/react@^4.7.0",
     "@codesandbox/sandpack-react": "https://esm.sh/@codesandbox/sandpack-react@^2.20.0",
-    "next/": "https://esm.sh/next@^16.1.6/",
-    "next": "https://esm.sh/next@^16.1.6",
-    "tailwindcss": "https://esm.sh/tailwindcss@^4.2.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.42.0"
+    "@google/genai": "https://esm.sh/@google/genai@^1.42.0",
+    "tailwindcss": "https://esm.sh/tailwindcss@^4.2.0"
   }
 }
 </script>
-</head>
-  <body class="bg-bkg text-content">
-    <div id="root"></div>
-  </body>
-</html>
-   
