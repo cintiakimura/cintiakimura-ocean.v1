@@ -7,8 +7,9 @@ import { Sandpack } from '@codesandbox/sandpack-react';
 import { ChatSidebar } from '../components/ChatSidebar';
 import { Terminal } from '../components/Terminal';
 import type { WizardData } from '../types';
+import { generateCode as generateCodeService } from '../services/apiService';
 
-export default function Home() {
+export default function App() {
     const [isWizardVisible, setIsWizardVisible] = useState(true);
     const [generatedCode, setGeneratedCode] = useState('// Click "Generate App" to create code...');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -24,28 +25,14 @@ export default function Home() {
         setTerminalOutput(prev => [...prev, 'Reading wizard config... done.']);
         setTerminalOutput(prev => [...prev, 'Generating code...']);
         try {
-            const formDataForApi = {
-                ...data,
-                brand: data.brand ? { name: data.brand.name, size: data.brand.size, type: data.brand.type } : null,
-            };
+            const code = await generateCodeService(data);
+            setGeneratedCode(code);
+            setTerminalOutput(prev => [...prev, '✅ Generation successful. Preview updated.']);
 
-            const response = await fetch('/api/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formDataForApi),
-            });
-            const result = await response.json();
-            if (response.ok) {
-                setGeneratedCode(result.code);
-                setTerminalOutput(prev => [...prev, '✅ Generation successful. Preview updated.']);
-            } else {
-                setGeneratedCode(`// Error: ${result.error}`);
-                setTerminalOutput(prev => [...prev, `❌ Error: ${result.error}`]);
-            }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown network error';
-            setGeneratedCode(`// Network error: ${errorMessage}`);
-            setTerminalOutput(prev => [...prev, `❌ Network Error: ${errorMessage}`]);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            setGeneratedCode(`// Error: ${errorMessage}`);
+            setTerminalOutput(prev => [...prev, `❌ Error: ${errorMessage}`]);
         } finally {
             setIsGenerating(false);
         }
@@ -83,7 +70,7 @@ export default function Home() {
                     isGenerating={isGenerating} 
                 />
                 <div className="flex-grow flex flex-col min-w-0">
-                    <div className="flex-grow grid grid-rows-2 gap-px bg-vscode-border">
+                    <div className="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-px bg-vscode-border">
                         <div className="bg-vscode-bg-deep overflow-hidden">
                             <MonacoEditor 
                                 height="100%" 
@@ -98,7 +85,7 @@ export default function Home() {
                                 template="react" 
                                 theme="dark"
                                 files={{ '/App.js': generatedCode }} 
-                                options={{ showLineNumbers: false, editorHeight: 0 }} 
+                                options={{ showLineNumbers: false, editorHeight: '100%' }} 
                             />
                         </div>
                     </div>
